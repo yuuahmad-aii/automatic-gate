@@ -47,8 +47,9 @@ void setup()
     // stepper->setDelayToDisable(1000);
 
     // speed up in ~0.025s, which needs 625 steps without linear mode
-    stepper->setSpeedInHz(2000);    // step/s
-    stepper->setAcceleration(8000); // step/s2
+    stepper->setSpeedInHz(2000); // step/s
+    // stepper->setAcceleration(8000); // step/s2 //ini tidak bisa mengerem, sehingga menabrak
+    stepper->setAcceleration(1400);
     // stepper->set
   }
   else
@@ -96,7 +97,7 @@ void loop()
   //   previousMillis = currentMillis;
   //   decelState = false;
   // }
-  digitalWrite(ledPin, decelState);
+  // digitalWrite(ledPin, decelState);
 
   // perintahkan buka / tutup hanya jika relay tertrigger
   if (receiverState != lastReceiverState)
@@ -108,12 +109,14 @@ void loop()
   if (receiverState)
   {
     stepper->moveTo(31168);
-    digitalWrite(ledPin, decelState);
+    digitalWrite(ledGerbangTerbuka, HIGH);
+    digitalWrite(ledGerbangTertutup, LOW);
   }
   else if (!receiverState)
   {
     stepper->moveTo(0);
-    digitalWrite(ledPin, decelState);
+    digitalWrite(ledGerbangTerbuka, LOW);
+    digitalWrite(ledGerbangTertutup, HIGH);
   }
 
   if (decelState && !selesaiBukaTutup)
