@@ -10,3 +10,7 @@ program kontroller automatic gate terinspirasi dari program homing dan program p
 * matikan power, kemudian hidupkan lagi
 * tekan tombol on untuk membuka gerbang, sekaligus melakukan homing
 * homing sudah berada di posisi. sekarang automatic gate dapat digunakan sebagaimana mestinya
+
+# TODO:
+* buat program homing ketika pertama kali booting, seperti yang ada di atc senday
+* kalibrasi ulang di lapangan 

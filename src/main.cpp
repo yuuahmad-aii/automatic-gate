@@ -27,6 +27,8 @@ byte lastlimitState = LOW;
 byte lastReceiverState = LOW;
 bool decelState = false;
 bool selesaiBukaTutup = true;
+// unutk homing
+bool runHoming = true;
 
 void setup()
 {
@@ -49,17 +51,15 @@ void setup()
     // speed up in ~0.025s, which needs 625 steps without linear mode
     stepper->setSpeedInHz(2000); // step/s
     // stepper->setAcceleration(8000); // step/s2 //ini tidak bisa mengerem, sehingga menabrak
-    stepper->setAcceleration(1400);
+    stepper->setAcceleration(850);
     // stepper->set
   }
   else
-  {
     while (true)
     {
       // Serial.println("NO STEPPER");
       delay(1000);
     }
-  }
 
   pinMode(ledPin, OUTPUT);
   pinMode(ledGerbangTerbuka, OUTPUT);
@@ -70,8 +70,9 @@ void setup()
 
 void loop()
 {
-  // debounce sekaligus setting trigger jadi rising edge
+  // perintah dari receiver radio
   byte receiverState = digitalRead(receiverPin);
+  // debounce sekaligus setting trigger jadi rising edge
   if (millis() - lastTimeButtonStateChanged > debounceDuration)
   {
     byte limitState = digitalRead(limitPin);
@@ -80,53 +81,72 @@ void loop()
       lastTimeButtonStateChanged = millis();
       lastlimitState = limitState;
       if (limitState == HIGH)
-      {
         decelState = true;
-        // trigger = true;
-        // do an action, for example print on Serial
-        // Serial.print(i);
-        // Serial.println("Button released");
-        // i++;
-      }
     }
   }
 
-  // limit decelState hanya selama interval
-  // if (currentMillis - previousMillis >= interval) {
-  //   // save the last time you blinked the LED
-  //   previousMillis = currentMillis;
-  //   decelState = false;
-  // }
-  // digitalWrite(ledPin, decelState);
-
   // perintahkan buka / tutup hanya jika relay tertrigger
+  // edge trigger (deteksi rising dan falling)
   if (receiverState != lastReceiverState)
   {
     lastReceiverState = receiverState;
     selesaiBukaTutup = false;
   }
 
-  if (receiverState)
+  if (!selesaiBukaTutup && runHoming) // hanya dieksekusi sekali, pada boot
   {
+    stepper->setSpeedInHz(500);
+    // stepper->setAcceleration(500); // kalau akselerasinya terlalu lambat, bisa2 balik nanti
+    stepper->setAcceleration(10000);
+    stepper->moveTo(31168);
+    digitalWrite(ledGerbangTerbuka, HIGH);
+    digitalWrite(ledGerbangTertutup, LOW);
+  }
+  else if (receiverState)
+  {
+    stepper->setSpeedInHz(2000);
+    stepper->setAcceleration(400);
     stepper->moveTo(31168);
     digitalWrite(ledGerbangTerbuka, HIGH);
     digitalWrite(ledGerbangTertutup, LOW);
   }
   else if (!receiverState)
   {
+    stepper->setSpeedInHz(2000);
+    stepper->setAcceleration(400);
     stepper->moveTo(0);
     digitalWrite(ledGerbangTerbuka, LOW);
     digitalWrite(ledGerbangTertutup, HIGH);
   }
 
+  // jika motor masih bergerak, kemudian mentrigger saklar
+  // maka hentikan pergerakan dan set menjadi max/min
   if (decelState && !selesaiBukaTutup)
   {
-    if (receiverState)
-      stepper->setCurrentPosition(31168);
-    else if (!receiverState)
-      stepper->setCurrentPosition(0);
+    if (runHoming)
+    {
+      runHoming = false;
+      // stepper->setCurrentPosition(31168);
+      // stepper->forceStop(); // stop tanpa deccelerasi
+      stepper->forceStopAndNewPosition(31168);
+      stepper->setDelayToDisable(5000);
+    }
+    else if (receiverState && !runHoming)
+    {
+      // stepper->setCurrentPosition(31168);
+      // stepper->forceStop(); // stop tanpa deccelerasi
+      stepper->forceStopAndNewPosition(31168);
+      stepper->setDelayToDisable(5000);
+    }
+    else if (!receiverState && !runHoming)
+    {
+      // stepper->setCurrentPosition(0);
+      // stepper->forceStop(); // stop tanpa deccelerasi
+      stepper->forceStopAndNewPosition(0);
+      stepper->setDelayToDisable(5000);
+    }
     // Serial.println("selesai!");
     selesaiBukaTutup = true;
-    decelState = false;
+    decelState = false; // reset rising edge
   }
 }
