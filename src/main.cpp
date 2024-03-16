@@ -98,22 +98,22 @@ void loop()
     stepper->setSpeedInHz(500);
     // stepper->setAcceleration(500); // kalau akselerasinya terlalu lambat, bisa2 balik nanti
     stepper->setAcceleration(10000);
-    stepper->moveTo(31168);
+    stepper->moveTo(33245);
     digitalWrite(ledGerbangTerbuka, HIGH);
     digitalWrite(ledGerbangTertutup, LOW);
   }
   else if (receiverState)
   {
     stepper->setSpeedInHz(2000);
-    stepper->setAcceleration(400);
-    stepper->moveTo(31168);
+    stepper->setAcceleration(150);
+    stepper->moveTo(33245);
     digitalWrite(ledGerbangTerbuka, HIGH);
     digitalWrite(ledGerbangTertutup, LOW);
   }
   else if (!receiverState)
   {
-    stepper->setSpeedInHz(2000);
-    stepper->setAcceleration(400);
+    stepper->setSpeedInHz(1500);
+    stepper->setAcceleration(200);
     stepper->moveTo(0);
     digitalWrite(ledGerbangTerbuka, LOW);
     digitalWrite(ledGerbangTertutup, HIGH);
@@ -126,24 +126,24 @@ void loop()
     if (runHoming)
     {
       runHoming = false;
-      // stepper->setCurrentPosition(31168);
+      // stepper->setCurrentPosition(33245);
       // stepper->forceStop(); // stop tanpa deccelerasi
-      stepper->forceStopAndNewPosition(31168);
-      stepper->setDelayToDisable(5000);
+      stepper->forceStopAndNewPosition(33245);
+      stepper->setDelayToDisable(3000);
     }
     else if (receiverState && !runHoming)
     {
-      // stepper->setCurrentPosition(31168);
+      // stepper->setCurrentPosition(33245);
       // stepper->forceStop(); // stop tanpa deccelerasi
-      stepper->forceStopAndNewPosition(31168);
-      stepper->setDelayToDisable(5000);
+      stepper->forceStopAndNewPosition(33245);
+      stepper->setDelayToDisable(3000);
     }
     else if (!receiverState && !runHoming)
     {
       // stepper->setCurrentPosition(0);
       // stepper->forceStop(); // stop tanpa deccelerasi
       stepper->forceStopAndNewPosition(0);
-      stepper->setDelayToDisable(5000);
+      stepper->setDelayToDisable(3000);
     }
     // Serial.println("selesai!");
     selesaiBukaTutup = true;
