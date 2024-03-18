@@ -12,5 +12,5 @@ program kontroller automatic gate terinspirasi dari program homing dan program p
 * homing sudah berada di posisi. sekarang automatic gate dapat digunakan sebagaimana mestinya
 
 # TODO:
-* buat program homing ketika pertama kali booting, seperti yang ada di atc senday
-* kalibrasi ulang di lapangan 
+* buat program homing ketika pertama kali booting, seperti yang ada di atc senday (done 16/3/2024)
+* kalibrasi ulang di lapangan (done 16/3/2024)
