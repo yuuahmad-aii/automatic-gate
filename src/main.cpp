@@ -16,10 +16,11 @@ FastAccelStepper *stepper = NULL;
 #define ledPin 13             // led notifikasi deccel state
 #define ledGerbangTerbuka 12  // led notif gerbang terbuka
 #define ledGerbangTertutup 11 // led notif gerbang tertutup
+#define buzzer 10             // buzzer notifikasi
 #define limitPin A1
 #define receiverPin 2
 
-unsigned long debounceDuration = 1000; // millis
+unsigned long debounceDuration = 3000; // millis //daru yang semula 1000 (problem mendal, tidk dpt dibuka lagi)
 unsigned long lastTimeButtonStateChanged = 0;
 // int i = 0;
 
@@ -44,14 +45,10 @@ void setup()
     stepper->setEnablePin(enablePinStepper);
     stepper->setAutoEnable(true);
 
-    // If auto enable/disable need delays, just add (one or both):
-    // stepper->setDelayToEnable(50);
-    // stepper->setDelayToDisable(1000);
-
     // speed up in ~0.025s, which needs 625 steps without linear mode
     stepper->setSpeedInHz(2000); // step/s
     // stepper->setAcceleration(8000); // step/s2 //ini tidak bisa mengerem, sehingga menabrak
-    stepper->setAcceleration(850);
+    stepper->setAcceleration(250);
     // stepper->set
   }
   else
@@ -64,8 +61,15 @@ void setup()
   pinMode(ledPin, OUTPUT);
   pinMode(ledGerbangTerbuka, OUTPUT);
   pinMode(ledGerbangTertutup, OUTPUT);
+  pinMode(buzzer, OUTPUT);
+
   pinMode(limitPin, INPUT_PULLUP);
   pinMode(receiverPin, INPUT_PULLUP);
+
+  // buat semua pin output mnjadi low
+  digitalWrite(ledGerbangTerbuka, LOW);
+  digitalWrite(ledGerbangTertutup, LOW);
+  digitalWrite(buzzer, LOW);
 }
 
 void loop()
@@ -91,6 +95,18 @@ void loop()
   {
     lastReceiverState = receiverState;
     selesaiBukaTutup = false;
+    if (receiverState)
+    {
+      digitalWrite(ledGerbangTerbuka, HIGH);
+      digitalWrite(ledGerbangTertutup, LOW);
+      digitalWrite(buzzer, HIGH);
+    }
+    else if (!receiverState)
+    {
+      digitalWrite(ledGerbangTerbuka, LOW);
+      digitalWrite(ledGerbangTertutup, HIGH);
+      digitalWrite(buzzer, HIGH);
+    }
   }
 
   if (!selesaiBukaTutup && runHoming) // hanya dieksekusi sekali, pada boot
@@ -98,25 +114,19 @@ void loop()
     stepper->setSpeedInHz(500);
     // stepper->setAcceleration(500); // kalau akselerasinya terlalu lambat, bisa2 balik nanti
     stepper->setAcceleration(10000);
-    stepper->moveTo(33245);
-    digitalWrite(ledGerbangTerbuka, HIGH);
-    digitalWrite(ledGerbangTertutup, LOW);
+    stepper->moveTo(31000); // perpendek lagi, dari sebelumny 31500
   }
   else if (receiverState)
   {
-    stepper->setSpeedInHz(2000);
-    stepper->setAcceleration(150);
-    stepper->moveTo(33245);
-    digitalWrite(ledGerbangTerbuka, HIGH);
-    digitalWrite(ledGerbangTertutup, LOW);
+    stepper->setSpeedInHz(3000);
+    stepper->setAcceleration(200);
+    stepper->moveTo(31000); // sebelumnya 33245
   }
   else if (!receiverState)
   {
-    stepper->setSpeedInHz(1500);
+    stepper->setSpeedInHz(3000);
     stepper->setAcceleration(200);
     stepper->moveTo(0);
-    digitalWrite(ledGerbangTerbuka, LOW);
-    digitalWrite(ledGerbangTertutup, HIGH);
   }
 
   // jika motor masih bergerak, kemudian mentrigger saklar
@@ -126,27 +136,34 @@ void loop()
     if (runHoming)
     {
       runHoming = false;
-      // stepper->setCurrentPosition(33245);
-      // stepper->forceStop(); // stop tanpa deccelerasi
-      stepper->forceStopAndNewPosition(33245);
+      stepper->forceStopAndNewPosition(31000);
       stepper->setDelayToDisable(3000);
     }
     else if (receiverState && !runHoming)
     {
-      // stepper->setCurrentPosition(33245);
-      // stepper->forceStop(); // stop tanpa deccelerasi
-      stepper->forceStopAndNewPosition(33245);
+      stepper->forceStopAndNewPosition(31000);
       stepper->setDelayToDisable(3000);
     }
     else if (!receiverState && !runHoming)
     {
-      // stepper->setCurrentPosition(0);
-      // stepper->forceStop(); // stop tanpa deccelerasi
       stepper->forceStopAndNewPosition(0);
       stepper->setDelayToDisable(3000);
     }
     // Serial.println("selesai!");
     selesaiBukaTutup = true;
     decelState = false; // reset rising edge
+    // matikan bunyi buzzer
+    if (receiverState)
+    {
+      digitalWrite(ledGerbangTerbuka, HIGH);
+      digitalWrite(ledGerbangTertutup, LOW);
+      digitalWrite(buzzer, LOW);
+    }
+    else if (!receiverState)
+    {
+      digitalWrite(ledGerbangTerbuka, LOW);
+      digitalWrite(ledGerbangTertutup, HIGH);
+      digitalWrite(buzzer, LOW);
+    }
   }
 }

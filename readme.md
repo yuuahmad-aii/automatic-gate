@@ -14,3 +14,19 @@ program kontroller automatic gate terinspirasi dari program homing dan program p
 # TODO:
 * buat program homing ketika pertama kali booting, seperti yang ada di atc senday (done 16/3/2024)
 * kalibrasi ulang di lapangan (done 16/3/2024)
+
+# test fungsi senin 15 april 2024
+### homing
+posisi default homing adalah terbuka
+* homing => berfungsi
+* reset (dicabut power lalu nyalakan lagi), kemudian homing => berfungsi
+* homing dari tengah jalan => berfungsi
+* homing saat sudah terbuka maksimal => berfungsi
+### running 
+ketika on pintu gerbang terbuka dan off pintu gerbang tertutup
+* ketika ditekan tombol on => berfungsi, pintu berhasil terbuka
+* ketika ditekan tombol off => berfungsi, pintu berhasil tertutup
+### masalah yang diketahui
+* terkadang tidak dapat terbuka/tertutup ketika remote dioperasikan
+* homing tidak bisa dilakukan 
+* menabrak, walaupun masih minim (solved) (update firmware)
