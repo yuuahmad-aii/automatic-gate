@@ -30,3 +30,13 @@ ketika on pintu gerbang terbuka dan off pintu gerbang tertutup
 * terkadang tidak dapat terbuka/tertutup ketika remote dioperasikan
 * homing tidak bisa dilakukan 
 * menabrak, walaupun masih minim (solved) (update firmware)
+
+# update firmware 3 mei 2024
+### masalah
+* bouncing pada gerbang keika gerbang terbuka / tertutup yang disebabkan oleh menabrak, menyebabkan gerbang terkadang tidak dapat dibuka tutup lagi
+* lampu pada gerbang harusnya terbuka dan ke-terbuka adalah hijau, tertutup dan ke-tertutup adalah merah
+* lampu kurang terang, sehingga pada siang hari yang terik tidak bisa terlihat dengan jelas.  
+### solusi
+* update firmware untuk mengatasi semua itu dengan menaikkan nilai deboune dan menurunkan nilai travel
+* sudah disesuaikan dengan firmware
+* perlu update jenis lampu atau pada bagian atas lampu diberi sebuah payung tambahan penghadadng silalunya sinar matahari
