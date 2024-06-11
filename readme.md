@@ -40,3 +40,13 @@ ketika on pintu gerbang terbuka dan off pintu gerbang tertutup
 * update firmware untuk mengatasi semua itu dengan menaikkan nilai deboune dan menurunkan nilai travel
 * sudah disesuaikan dengan firmware
 * perlu update jenis lampu atau pada bagian atas lampu diberi sebuah payung tambahan penghadadng silalunya sinar matahari
+* 
+# update firmware 11 juni 2024
+### masalah
+* bouncing pada gerbang keika gerbang terbuka / tertutup yang disebabkan oleh menabrak, menyebabkan gerbang terkadang tidak dapat dibuka tutup lagi
+* stepper motor selip, bahkan sampai keluar dari jalur (keluar keatas) 
+* sinyal encoder untuk close loop stepper motor urutan sinyal masuk ke stepper drivernya salah 
+### solusi
+* menaikkan nilai deboune (3 detik)
+* buat kontrol stepper oleh stepper driver menjadi close loop
+* perbaiki dan buat sinyal encodernya urutannya sesuai

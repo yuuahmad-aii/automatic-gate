@@ -5,11 +5,7 @@
 #define dirPinStepper 5
 #define enablePinStepper 6
 #define stepPinStepper 9
-// If using an AVR device use the definitons provided in AVRStepperPins
-//    stepPinStepper1A
-//
-// or even shorter (for 2560 the correct pin on the chosen timer is selected):
-//    stepPinStepperA
+
 FastAccelStepperEngine engine = FastAccelStepperEngine();
 FastAccelStepper *stepper = NULL;
 
@@ -20,9 +16,9 @@ FastAccelStepper *stepper = NULL;
 #define limitPin A1
 #define receiverPin 2
 
+// debounce tombol
 unsigned long debounceDuration = 3000; // millis //daru yang semula 1000 (problem mendal, tidk dpt dibuka lagi)
 unsigned long lastTimeButtonStateChanged = 0;
-// int i = 0;
 
 byte lastlimitState = LOW;
 byte lastReceiverState = LOW;
@@ -30,6 +26,9 @@ bool decelState = false;
 bool selesaiBukaTutup = true;
 // unutk homing
 bool runHoming = true;
+
+// variabel panjang gerbang
+int32_t pulse_gerbang = 11100;
 
 void setup()
 {
@@ -111,21 +110,20 @@ void loop()
 
   if (!selesaiBukaTutup && runHoming) // hanya dieksekusi sekali, pada boot
   {
-    stepper->setSpeedInHz(500);
-    // stepper->setAcceleration(500); // kalau akselerasinya terlalu lambat, bisa2 balik nanti
-    stepper->setAcceleration(10000);
-    stepper->moveTo(31000); // perpendek lagi, dari sebelumny 31500
+    stepper->setSpeedInHz(150);
+    stepper->setAcceleration(5000); // kalau akselerasinya terlalu lambat, bisa2 balik nanti
+    stepper->moveTo(pulse_gerbang); // perpendek lagi, dari sebelumny 31500
   }
   else if (receiverState)
   {
-    stepper->setSpeedInHz(3000);
-    stepper->setAcceleration(200);
-    stepper->moveTo(31000); // sebelumnya 33245
+    stepper->setSpeedInHz(2000);
+    stepper->setAcceleration(80);
+    stepper->moveTo(pulse_gerbang); // sebelumnya 33245
   }
   else if (!receiverState)
   {
-    stepper->setSpeedInHz(3000);
-    stepper->setAcceleration(200);
+    stepper->setSpeedInHz(2000);
+    stepper->setAcceleration(80);
     stepper->moveTo(0);
   }
 
@@ -136,34 +134,31 @@ void loop()
     if (runHoming)
     {
       runHoming = false;
-      stepper->forceStopAndNewPosition(31000);
-      stepper->setDelayToDisable(3000);
+      stepper->forceStopAndNewPosition(pulse_gerbang);
+      stepper->setDelayToDisable(600);
+      digitalWrite(buzzer, LOW);
     }
     else if (receiverState && !runHoming)
     {
-      stepper->forceStopAndNewPosition(31000);
-      stepper->setDelayToDisable(3000);
-    }
-    else if (!receiverState && !runHoming)
-    {
-      stepper->forceStopAndNewPosition(0);
-      stepper->setDelayToDisable(3000);
-    }
-    // Serial.println("selesai!");
-    selesaiBukaTutup = true;
-    decelState = false; // reset rising edge
-    // matikan bunyi buzzer
-    if (receiverState)
-    {
+      stepper->forceStopAndNewPosition(pulse_gerbang);
+      stepper->setDelayToDisable(600);
+      // matikan buzzer
       digitalWrite(ledGerbangTerbuka, HIGH);
       digitalWrite(ledGerbangTertutup, LOW);
       digitalWrite(buzzer, LOW);
     }
-    else if (!receiverState)
+    else if (!receiverState && !runHoming)
     {
+      stepper->forceStopAndNewPosition(0);
+      stepper->setDelayToDisable(600);
+      // matikan buzzer
       digitalWrite(ledGerbangTerbuka, LOW);
       digitalWrite(ledGerbangTertutup, HIGH);
       digitalWrite(buzzer, LOW);
     }
+
+    // Serial.println("selesai!");
+    selesaiBukaTutup = true;
+    decelState = false; // reset rising edge
   }
 }
