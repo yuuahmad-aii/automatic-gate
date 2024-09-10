@@ -129,19 +129,19 @@ void loop()
 
   // jika motor masih bergerak, kemudian mentrigger saklar
   // maka hentikan pergerakan dan set menjadi max/min
-  if (decelState && !selesaiBukaTutup)
+  if ( !selesaiBukaTutup)
   {
     if (runHoming)
     {
       runHoming = false;
       stepper->forceStopAndNewPosition(pulse_gerbang);
-      stepper->setDelayToDisable(600);
+      stepper->disableOutputs();
       digitalWrite(buzzer, LOW);
     }
     else if (receiverState && !runHoming)
     {
       stepper->forceStopAndNewPosition(pulse_gerbang);
-      stepper->setDelayToDisable(600);
+      stepper->disableOutputs();
       // matikan buzzer
       digitalWrite(ledGerbangTerbuka, HIGH);
       digitalWrite(ledGerbangTertutup, LOW);
@@ -150,7 +150,7 @@ void loop()
     else if (!receiverState && !runHoming)
     {
       stepper->forceStopAndNewPosition(0);
-      stepper->setDelayToDisable(600);
+      stepper->disableOutputs();
       // matikan buzzer
       digitalWrite(ledGerbangTerbuka, LOW);
       digitalWrite(ledGerbangTertutup, HIGH);
