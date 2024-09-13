@@ -1,175 +1,90 @@
-#include <Arduino.h>
-#include "FastAccelStepper.h"
-#include "AVRStepperPins.h" // Only required for AVR controllers
+#include <AccelStepper.h>
 
-// stepper pin
-#define dirPinStepper 5
-#define enablePinStepper 6
-#define stepPinStepper 9
+// Definisikan pin untuk driver stepper
+#define PULSE_PIN D1  // Pin untuk sinyal Pulse (pulsa)
+#define DIR_PIN D2    // Pin untuk sinyal Direction (arah)
+#define ENABLE_PIN D3 // Pin untuk Enable driver
 
-// Pin definitions
-#define limitProxyPin 2 // pin limit proxy connected to pin 2 (interrupt 0)
-#define rfReceiverPin 3 // rf receiver connected to pin 3 (interrupt 1)
+// Definisikan pin untuk input interrupt
+#define INTERRUPT_PIN_1 D5 // Tombol 1 (GPIO14)
+#define INTERRUPT_PIN_2 D6 // Tombol 2 (GPIO12)
+#define INTERRUPT_PIN_3 D7 // Tombol 3 (GPIO13)
 
-// Variables to keep track of button states
-volatile bool limitProxyTriggered = false;
-volatile bool rfReceiverChange = false;
+// Variabel untuk menampung state interrupt
+volatile bool interruptFlag1 = false;
+volatile bool interruptFlag2 = false;
+volatile bool interruptFlag3 = false;
 
-// Debounce timing
-unsigned long lastDebounceTime1 = 0;
-unsigned long lastDebounceTime2 = 0;
-const unsigned long debounceDelay = 100; // 100 ms debounce delay
+// Setup stepper dengan menggunakan AccelStepper
+AccelStepper stepper(AccelStepper::DRIVER, PULSE_PIN, DIR_PIN);
 
-// variabel untuk service gerbang
-bool runHoming = true;
-
-// initialize stepper
-FastAccelStepperEngine engine = FastAccelStepperEngine();
-FastAccelStepper *stepper = NULL;
-
-// initialize indicator pinout
-#define ledPin 13             // led notifikasi deccel state
-#define ledGerbangTerbuka 12  // led notif gerbang terbuka
-#define ledGerbangTertutup 11 // led notif gerbang tertutup
-#define buzzer 10             // buzzer notifikasi
-
-int32_t pulse_gerbang = 11100;
-
-// Interrupt Service Routine for pin limit proxy (falling edge on pin 2)
-void button1ISR()
+// Fungsi interrupt untuk tombol 1 (gerakkan ke kanan)
+void ICACHE_RAM_ATTR handleInterrupt1()
 {
-  unsigned long currentTime = millis(); // Get current time
-  // Debounce check
-  if ((currentTime - lastDebounceTime1) > debounceDelay)
-  {
-    // digitalRead(limitProxyPin) == 0 ? limitProxyTriggered = true : limitProxyTriggered = false;
-    limitProxyTriggered = true;
-    lastDebounceTime1 = currentTime; // Update last debounce time
-  }
+  interruptFlag1 = true;
 }
 
-// Interrupt Service Routine for rf receiver (rising and falling edge on pin 3)
-void button2ISR()
+// Fungsi interrupt untuk tombol 2 (gerakkan ke kiri)
+void ICACHE_RAM_ATTR handleInterrupt2()
 {
-  unsigned long currentTime = millis(); // Get current time
-  // Debounce check
-  if ((currentTime - lastDebounceTime2) > debounceDelay)
-  {
-    rfReceiverChange = true;
-    lastDebounceTime2 = currentTime; // Update last debounce time
-  }
+  interruptFlag2 = true;
+}
+
+// Fungsi interrupt untuk tombol 3 (hentikan motor)
+void ICACHE_RAM_ATTR handleInterrupt3()
+{
+  interruptFlag3 = true;
 }
 
 void setup()
 {
-  engine.init();
-  stepper = engine.stepperConnectToPin(stepPinStepper);
-  if (stepper)
-  {
-    // Serial.println("HAVE STEPPER");
-    stepper->setDirectionPin(dirPinStepper);
-    stepper->setEnablePin(enablePinStepper);
-    stepper->setAutoEnable(true);
+  // Setup pin untuk Enable driver
+  pinMode(ENABLE_PIN, OUTPUT);
+  digitalWrite(ENABLE_PIN, LOW); // Aktifkan driver (LOW = aktif)
 
-    // speed up in ~0.025s, which needs 625 steps without linear mode
-    stepper->setSpeedInHz(2000); // step/s
-    // stepper->setAcceleration(8000); // step/s2 //ini tidak bisa mengerem, sehingga menabrak
-    stepper->setAcceleration(250);
-    // stepper->set
-  }
-  else
-    while (true)
-    {
-      // Serial.println("NO STEPPER");
-      delay(1000);
-    }
+  // Setup pin untuk input interrupt
+  pinMode(INTERRUPT_PIN_1, INPUT_PULLUP);
+  pinMode(INTERRUPT_PIN_2, INPUT_PULLUP);
+  pinMode(INTERRUPT_PIN_3, INPUT_PULLUP);
 
-  // pinmode untuk pin indikator
-  pinMode(ledPin, OUTPUT);
-  pinMode(ledGerbangTerbuka, OUTPUT);
-  pinMode(ledGerbangTertutup, OUTPUT);
-  pinMode(buzzer, OUTPUT);
+  // Attach interrupt ke masing-masing pin
+  attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN_1), handleInterrupt1, FALLING);
+  attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN_2), handleInterrupt2, FALLING);
+  attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN_3), handleInterrupt3, FALLING);
 
-  // buat semua pin output mnjadi low pada awal program
-  digitalWrite(ledGerbangTerbuka, LOW);
-  digitalWrite(ledGerbangTertutup, LOW);
-  digitalWrite(buzzer, LOW);
+  // Konfigurasi motor stepper dengan AccelStepper
+  stepper.setMaxSpeed(1000);    // Set kecepatan maksimum (langkah per detik)
+  stepper.setAcceleration(500); // Set akselerasi (langkah per detik kuadrat)
 
-  // Set pins as inputs
-  pinMode(limitProxyPin, INPUT_PULLUP); // Using internal pull-up resistor
-  pinMode(rfReceiverPin, INPUT_PULLUP);
-
-  // Attach interrupts
-  attachInterrupt(digitalPinToInterrupt(limitProxyPin), button1ISR, FALLING); // Interrupt on falling edge
-  attachInterrupt(digitalPinToInterrupt(rfReceiverPin), button2ISR, CHANGE);  // Interrupt on both rising and falling edge
-
-  // Initialize serial communication for debugging
   Serial.begin(115200);
 }
 
 void loop()
 {
-  // Check if limit proxy was triggered (falling edge karena pin di pullup internal)
-  if (limitProxyTriggered)
+  // Jika tombol 1 ditekan, gerakkan motor ke kanan
+  if (interruptFlag1)
   {
-    Serial.println("limit proxy triggered (falling edge)");
-    limitProxyTriggered = false; // Reset the flag
-    if (runHoming)               // kalau sedang homing (awal hidup)
-    {
-      runHoming = false; // reset flag run homing ketika tertrigger
-      stepper->forceStopAndNewPosition(pulse_gerbang);
-      stepper->disableOutputs();
-      digitalWrite(buzzer, LOW);
-    }
-    else
-    {
-      if (digitalRead(rfReceiverPin) == LOW)
-      {
-        stepper->forceStopAndNewPosition(pulse_gerbang);
-        stepper->disableOutputs();
-        // matikan buzzer
-        digitalWrite(ledGerbangTerbuka, HIGH);
-        digitalWrite(ledGerbangTertutup, LOW);
-        digitalWrite(buzzer, LOW);
-      }
-      else
-      {
-        stepper->forceStopAndNewPosition(0);
-        stepper->disableOutputs();
-        // matikan buzzer
-        digitalWrite(ledGerbangTerbuka, LOW);
-        digitalWrite(ledGerbangTertutup, HIGH);
-        digitalWrite(buzzer, LOW);
-      }
-    }
+    interruptFlag1 = false; // Reset flag interrupt
+    Serial.println("Tombol 1 ditekan: Motor ke kanan");
+    stepper.move(1000); // Gerakkan motor 1000 langkah ke kanan
   }
 
-  // Check if rf receiver signal state changed (either rising or falling edge detected)
-  if (rfReceiverChange) // pin3
+  // Jika tombol 2 ditekan, gerakkan motor ke kiri
+  if (interruptFlag2)
   {
-    rfReceiverChange = false; // Reset the flag
-    if (runHoming)            // hanya dieksekusi sekali, saat pertamakali hidup
-    {
-      stepper->setSpeedInHz(150);
-      stepper->setAcceleration(5000); // kalau akselerasinya terlalu lambat, bisa2 balik nanti
-      stepper->moveTo(pulse_gerbang); // perpendek lagi, dari sebelumny 31500
-    }
-    else
-    {
-      if (digitalRead(rfReceiverPin) == LOW)
-      {
-        Serial.println("rf receiver pressed (falling edge)");
-        stepper->setSpeedInHz(2000);
-        stepper->setAcceleration(80);
-        stepper->moveTo(pulse_gerbang); // sebelumnya 33245
-      }
-      else
-      {
-        Serial.println("rf receiver released (rising edge)");
-        stepper->setSpeedInHz(2000);
-        stepper->setAcceleration(80);
-        stepper->moveTo(0);
-      }
-    }
+    interruptFlag2 = false; // Reset flag interrupt
+    Serial.println("Tombol 2 ditekan: Motor ke kiri");
+    stepper.move(-1000); // Gerakkan motor 1000 langkah ke kiri
   }
+
+  // Jika tombol 3 ditekan, berhentikan motor
+  if (interruptFlag3)
+  {
+    interruptFlag3 = false; // Reset flag interrupt
+    Serial.println("Tombol 3 ditekan: Motor berhenti");
+    stepper.stop(); // Berhentikan motor
+  }
+
+  // Jalankan motor jika ada perintah pergerakan
+  stepper.run();
 }
