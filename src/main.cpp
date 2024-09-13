@@ -3,6 +3,7 @@
 #include <AccelStepper.h>
 
 // #define verbose 1
+#define pan
 
 // Definisikan pin untuk driver stepper
 #define PULSE_PIN D1  // Pin untuk sinyal Pulse (pulsa)
@@ -52,7 +53,7 @@ void setup()
   pinMode(RADIO_PIN, INPUT_PULLUP);
 
   // Attach interrupt ke masing-masing pin
-  attachInterrupt(digitalPinToInterrupt(LIMIT_PIN), handleLimit, FALLING);
+  attachInterrupt(digitalPinToInterrupt(LIMIT_PIN), handleLimit, RISING);
   attachInterrupt(digitalPinToInterrupt(RADIO_PIN), handleRf, CHANGE);
 
   // Konfigurasi motor stepper dengan AccelStepper
@@ -68,27 +69,36 @@ void setup()
 
 void loop()
 {
-  // Jika tombol 1 ditekan, gerakkan motor ke kanan
-  if (limitDecel)
+  // perintah stop motor dan service-nya
+  if (stepper.isRunning())
+  {
+    if (limitDecel)
+    {
+      limitDecel = false;
+#ifdef verbose
+      Serial.println("Motor decel");
+#endif
+      stepper.stop(); // stop motor
+    }
+    else if (limitStop)
+    {
+      limitStop = false;
+      limitTriggerKe = 0;
+#ifdef verbose
+      Serial.println("Motor disable");
+#endif
+      stepper.disableOutputs(); // stop motor
+      if (digitalRead(RADIO_PIN))
+        stepper.setCurrentPosition(8000); // Gerakkan motor 8000 langkah ke kiri
+      else
+        stepper.setCurrentPosition(-8000); // Gerakkan motor 8000 langkah ke kiri
+    }
+  }
+  else // reset semua flag jika motor tidak bergerak
   {
     limitDecel = false;
-#ifdef verbose
-    Serial.println("Motor decel");
-#endif
-    stepper.stop(); // stop motor
-  }
-  else if (limitStop)
-  {
     limitStop = false;
     limitTriggerKe = 0;
-#ifdef verbose
-    Serial.println("Motor disable");
-#endif
-    stepper.disableOutputs(); // stop motor
-    if (digitalRead(RADIO_PIN))
-      stepper.setCurrentPosition(8000); // Gerakkan motor 8000 langkah ke kiri
-    else
-      stepper.setCurrentPosition(-8000); // Gerakkan motor 8000 langkah ke kiri
   }
 
   // Jika tombol 2 ditekan, gerakkan motor ke kiri
