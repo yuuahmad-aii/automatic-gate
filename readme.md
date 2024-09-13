@@ -30,7 +30,6 @@ ketika on pintu gerbang terbuka dan off pintu gerbang tertutup
 * terkadang tidak dapat terbuka/tertutup ketika remote dioperasikan
 * homing tidak bisa dilakukan 
 * menabrak, walaupun masih minim (solved) (update firmware)
-
 # update firmware 3 mei 2024
 ### masalah
 * bouncing pada gerbang keika gerbang terbuka / tertutup yang disebabkan oleh menabrak, menyebabkan gerbang terkadang tidak dapat dibuka tutup lagi
@@ -50,3 +49,9 @@ ketika on pintu gerbang terbuka dan off pintu gerbang tertutup
 * menaikkan nilai deboune (3 detik)
 * buat kontrol stepper oleh stepper driver menjadi close loop
 * perbaiki dan buat sinyal encodernya urutannya sesuai
+# update firmware 11 juni 2024
+### masalah
+* tidak terlalu konsisten dalam pergerakan, dan terlalu banyak error
+### solusi
+* buat elektronika dari 0 lagi, dengan input interrupt dan limit proxy
+* tambah rangkaian debounce secara hardware

@@ -7,53 +7,53 @@
 #define ENABLE_PIN D3 // Pin untuk Enable driver
 
 // Definisikan pin untuk input interrupt
-#define INTERRUPT_PIN_1 D5 // Tombol 1 (GPIO14)
-#define INTERRUPT_PIN_2 D6 // Tombol 2 (GPIO12)
-#define INTERRUPT_PIN_3 D7 // Tombol 3 (GPIO13)
+#define LIMIT_PIN D5 // Tombol 1 (GPIO14)
+#define RADIO_PIN D6 // Tombol 2 (GPIO12)
 
 // Variabel untuk menampung state interrupt
-volatile bool interruptFlag1 = false;
-volatile bool interruptFlag2 = false;
-volatile bool interruptFlag3 = false;
+volatile bool limitState = false;
+volatile bool limitDecel = false;
+volatile bool limitStop = false;
+volatile int limitTriggerKe = 0;
+volatile bool rfState = false;
 
 // Setup stepper dengan menggunakan AccelStepper
 AccelStepper stepper(AccelStepper::DRIVER, PULSE_PIN, DIR_PIN);
 
 // Fungsi interrupt untuk tombol 1 (gerakkan ke kanan)
-void ICACHE_RAM_ATTR handleInterrupt1()
+void IRAM_ATTR handleLimit()
 {
-  interruptFlag1 = true;
+  // limitState = true;
+  limitTriggerKe++;
+  Serial.print("trigger ke-");
+  Serial.println(limitTriggerKe);
+  limitTriggerKe == 2 ? limitDecel = true : limitDecel = false;
+  limitTriggerKe == 3 ? limitStop = true : limitStop = false;
 }
 
 // Fungsi interrupt untuk tombol 2 (gerakkan ke kiri)
-void ICACHE_RAM_ATTR handleInterrupt2()
+void IRAM_ATTR handleRf()
 {
-  interruptFlag2 = true;
-}
-
-// Fungsi interrupt untuk tombol 3 (hentikan motor)
-void ICACHE_RAM_ATTR handleInterrupt3()
-{
-  interruptFlag3 = true;
+  rfState = true;
 }
 
 void setup()
 {
   // Setup pin untuk Enable driver
   pinMode(ENABLE_PIN, OUTPUT);
-  digitalWrite(ENABLE_PIN, LOW); // Aktifkan driver (LOW = aktif)
 
   // Setup pin untuk input interrupt
-  pinMode(INTERRUPT_PIN_1, INPUT_PULLUP);
-  pinMode(INTERRUPT_PIN_2, INPUT_PULLUP);
-  pinMode(INTERRUPT_PIN_3, INPUT_PULLUP);
+  pinMode(LIMIT_PIN, INPUT_PULLUP);
+  pinMode(RADIO_PIN, INPUT_PULLUP);
 
   // Attach interrupt ke masing-masing pin
-  attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN_1), handleInterrupt1, FALLING);
-  attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN_2), handleInterrupt2, FALLING);
-  attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN_3), handleInterrupt3, FALLING);
+  attachInterrupt(digitalPinToInterrupt(LIMIT_PIN), handleLimit, FALLING);
+  attachInterrupt(digitalPinToInterrupt(RADIO_PIN), handleRf, CHANGE);
 
   // Konfigurasi motor stepper dengan AccelStepper
+  stepper.setEnablePin(ENABLE_PIN);
+  stepper.setPinsInverted(false, false, false);
+  stepper.disableOutputs();     // pin enable (LOW = aktif)
   stepper.setMaxSpeed(1000);    // Set kecepatan maksimum (langkah per detik)
   stepper.setAcceleration(500); // Set akselerasi (langkah per detik kuadrat)
 
@@ -63,29 +63,40 @@ void setup()
 void loop()
 {
   // Jika tombol 1 ditekan, gerakkan motor ke kanan
-  if (interruptFlag1)
+  if (limitDecel)
   {
-    interruptFlag1 = false; // Reset flag interrupt
-    Serial.println("Tombol 1 ditekan: Motor ke kanan");
-    stepper.move(1000); // Gerakkan motor 1000 langkah ke kanan
+    limitDecel = false;
+    Serial.println("Motor decel");
+    stepper.stop(); // stop motor
+  }
+  else if (limitStop)
+  {
+    limitStop = false;
+    limitTriggerKe = 0;
+    Serial.println("Motor disable");
+    stepper.disableOutputs(); // stop motor
+    if (digitalRead(RADIO_PIN))
+      stepper.setCurrentPosition(8000); // Gerakkan motor 8000 langkah ke kiri
+    else
+      stepper.setCurrentPosition(-8000); // Gerakkan motor 8000 langkah ke kiri
   }
 
   // Jika tombol 2 ditekan, gerakkan motor ke kiri
-  if (interruptFlag2)
+  if (rfState)
   {
-    interruptFlag2 = false; // Reset flag interrupt
-    Serial.println("Tombol 2 ditekan: Motor ke kiri");
-    stepper.move(-1000); // Gerakkan motor 1000 langkah ke kiri
+    rfState = false; // Reset flag interrupt
+    if (digitalRead(RADIO_PIN))
+    {
+      Serial.println("Motor ke kanan");
+      stepper.enableOutputs();
+      stepper.move(8000); // Gerakkan motor 8000 langkah ke kiri
+    }
+    else
+    {
+      Serial.println("Motor ke kiri");
+      stepper.enableOutputs();
+      stepper.move(-8000); // Gerakkan motor 8000 langkah ke kiri
+    }
   }
-
-  // Jika tombol 3 ditekan, berhentikan motor
-  if (interruptFlag3)
-  {
-    interruptFlag3 = false; // Reset flag interrupt
-    Serial.println("Tombol 3 ditekan: Motor berhenti");
-    stepper.stop(); // Berhentikan motor
-  }
-
-  // Jalankan motor jika ada perintah pergerakan
   stepper.run();
 }
