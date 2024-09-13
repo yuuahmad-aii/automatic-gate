@@ -1,5 +1,8 @@
 // COBA COMIT KE MAIN GITHUB
+#include <Arduino.h>
 #include <AccelStepper.h>
+
+// #define verbose 1
 
 // Definisikan pin untuk driver stepper
 #define PULSE_PIN D1  // Pin untuk sinyal Pulse (pulsa)
@@ -25,8 +28,10 @@ void IRAM_ATTR handleLimit()
 {
   // limitState = true;
   limitTriggerKe++;
+#ifdef verbose
   Serial.print("trigger ke-");
   Serial.println(limitTriggerKe);
+#endif
   limitTriggerKe == 2 ? limitDecel = true : limitDecel = false;
   limitTriggerKe == 3 ? limitStop = true : limitStop = false;
 }
@@ -56,8 +61,9 @@ void setup()
   stepper.disableOutputs();     // pin enable (LOW = aktif)
   stepper.setMaxSpeed(1000);    // Set kecepatan maksimum (langkah per detik)
   stepper.setAcceleration(500); // Set akselerasi (langkah per detik kuadrat)
-
+#ifdef verbose
   Serial.begin(115200);
+#endif
 }
 
 void loop()
@@ -66,14 +72,18 @@ void loop()
   if (limitDecel)
   {
     limitDecel = false;
+#ifdef verbose
     Serial.println("Motor decel");
+#endif
     stepper.stop(); // stop motor
   }
   else if (limitStop)
   {
     limitStop = false;
     limitTriggerKe = 0;
+#ifdef verbose
     Serial.println("Motor disable");
+#endif
     stepper.disableOutputs(); // stop motor
     if (digitalRead(RADIO_PIN))
       stepper.setCurrentPosition(8000); // Gerakkan motor 8000 langkah ke kiri
@@ -87,13 +97,17 @@ void loop()
     rfState = false; // Reset flag interrupt
     if (digitalRead(RADIO_PIN))
     {
+#ifdef verbose
       Serial.println("Motor ke kanan");
+#endif
       stepper.enableOutputs();
       stepper.move(8000); // Gerakkan motor 8000 langkah ke kiri
     }
     else
     {
+#ifdef verbose
       Serial.println("Motor ke kiri");
+#endif
       stepper.enableOutputs();
       stepper.move(-8000); // Gerakkan motor 8000 langkah ke kiri
     }
