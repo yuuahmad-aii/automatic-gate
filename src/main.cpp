@@ -2,8 +2,12 @@
 #include <Arduino.h>
 #include <AccelStepper.h>
 
-// #define verbose 1
-#define pan
+#define VERBOSE 1
+// #define PANJANG_GERBANG 10000
+#define PANJANG_GERBANG 11500
+#define MAX_SPD_GERBANG 1300
+#define DCC_GERBANG 400
+#define ACC_GERBANG 800
 
 // Definisikan pin untuk driver stepper
 #define PULSE_PIN D1  // Pin untuk sinyal Pulse (pulsa)
@@ -21,6 +25,10 @@ volatile bool limitStop = false;
 volatile int limitTriggerKe = 0;
 volatile bool rfState = false;
 
+// debounce trigger
+unsigned long lastDebounceTimeRf = 0;
+const unsigned long debounceDelayRf = 100; // 100 ms debounce delay
+
 // Setup stepper dengan menggunakan AccelStepper
 AccelStepper stepper(AccelStepper::DRIVER, PULSE_PIN, DIR_PIN);
 
@@ -29,7 +37,7 @@ void IRAM_ATTR handleLimit()
 {
   // limitState = true;
   limitTriggerKe++;
-#ifdef verbose
+#ifdef VERBOSE
   Serial.print("trigger ke-");
   Serial.println(limitTriggerKe);
 #endif
@@ -40,7 +48,14 @@ void IRAM_ATTR handleLimit()
 // Fungsi interrupt untuk tombol 2 (gerakkan ke kiri)
 void IRAM_ATTR handleRf()
 {
-  rfState = true;
+  unsigned long currentTime = millis(); // Get current time
+  // Debounce check
+  if ((currentTime - lastDebounceTimeRf) > debounceDelayRf)
+  {
+    // button1Pressed = true;
+    rfState = true;
+    lastDebounceTimeRf = currentTime; // Update last debounce time
+  }
 }
 
 void setup()
@@ -59,10 +74,10 @@ void setup()
   // Konfigurasi motor stepper dengan AccelStepper
   stepper.setEnablePin(ENABLE_PIN);
   stepper.setPinsInverted(false, false, false);
-  stepper.disableOutputs();     // pin enable (LOW = aktif)
-  stepper.setMaxSpeed(1000);    // Set kecepatan maksimum (langkah per detik)
-  stepper.setAcceleration(500); // Set akselerasi (langkah per detik kuadrat)
-#ifdef verbose
+  stepper.disableOutputs();             // pin enable (LOW = aktif)
+  stepper.setMaxSpeed(MAX_SPD_GERBANG); // Set kecepatan maksimum (langkah per detik)
+  stepper.setAcceleration(ACC_GERBANG); // Set akselerasi (langkah per detik kuadrat)
+#ifdef VERBOSE
   Serial.begin(115200);
 #endif
 }
@@ -75,19 +90,20 @@ void loop()
     if (limitDecel)
     {
       limitDecel = false;
-#ifdef verbose
+#ifdef VERBOSE
       Serial.println("Motor decel");
 #endif
-      stepper.stop(); // stop motor
+      stepper.setAcceleration(DCC_GERBANG); // Set dekselerasi (langkah per detik kuadrat)
+      stepper.stop();                       // stop motor dengan dekselerasi
     }
     else if (limitStop)
     {
       limitStop = false;
       limitTriggerKe = 0;
-#ifdef verbose
+#ifdef VERBOSE
       Serial.println("Motor disable");
 #endif
-      stepper.disableOutputs(); // stop motor
+      stepper.disableOutputs(); // stop motor secara instan (immediately)
       if (digitalRead(RADIO_PIN))
         stepper.setCurrentPosition(8000); // Gerakkan motor 8000 langkah ke kiri
       else
@@ -99,27 +115,30 @@ void loop()
     limitDecel = false;
     limitStop = false;
     limitTriggerKe = 0;
+    stepper.disableOutputs();
   }
 
   // Jika tombol 2 ditekan, gerakkan motor ke kiri
   if (rfState)
   {
-    rfState = false; // Reset flag interrupt
+    rfState = false;                      // Reset flag interrupt
+    stepper.setAcceleration(ACC_GERBANG); // Set akselerasi (langkah per detik kuadrat)
     if (digitalRead(RADIO_PIN))
     {
-#ifdef verbose
+#ifdef VERBOSE
       Serial.println("Motor ke kanan");
 #endif
       stepper.enableOutputs();
-      stepper.move(8000); // Gerakkan motor 8000 langkah ke kiri
+      stepper.move(PANJANG_GERBANG); // Gerakkan motor PANJANG_GERBANG langkah ke kiri
     }
     else
     {
-#ifdef verbose
+#ifdef VERBOSE
       Serial.println("Motor ke kiri");
 #endif
       stepper.enableOutputs();
-      stepper.move(-8000); // Gerakkan motor 8000 langkah ke kiri
+      stepper.setAcceleration(ACC_GERBANG); // Set akselerasi (langkah per detik kuadrat)
+      stepper.move(-PANJANG_GERBANG);       // Gerakkan motor PANJANG_GERBANG langkah ke kiri
     }
   }
   stepper.run();
