@@ -4,9 +4,9 @@
 
 #define VERBOSE 1
 // #define PANJANG_GERBANG 10000
-#define PANJANG_GERBANG 11500
+#define PANJANG_GERBANG 10000
 #define MAX_SPD_GERBANG 1300
-#define DCC_GERBANG 400
+#define DCC_GERBANG 350
 #define ACC_GERBANG 800
 
 // Definisikan pin untuk driver stepper
@@ -27,7 +27,10 @@ volatile bool rfState = false;
 
 // debounce trigger
 unsigned long lastDebounceTimeRf = 0;
-const unsigned long debounceDelayRf = 100; // 100 ms debounce delay
+unsigned long lastDebounceTimeTrig = 0;
+
+const unsigned long debounceDelayRf = 100;   // 100 ms debounce delay
+const unsigned long debounceDelayTrig = 100; // 100 ms debounce delay
 
 // Setup stepper dengan menggunakan AccelStepper
 AccelStepper stepper(AccelStepper::DRIVER, PULSE_PIN, DIR_PIN);
@@ -36,7 +39,13 @@ AccelStepper stepper(AccelStepper::DRIVER, PULSE_PIN, DIR_PIN);
 void IRAM_ATTR handleLimit()
 {
   // limitState = true;
-  limitTriggerKe++;
+  unsigned long currentTime = millis(); // Get current time
+  // Debounce check
+  if ((currentTime - lastDebounceTimeTrig) > debounceDelayTrig)
+  {
+    limitTriggerKe++;
+    lastDebounceTimeTrig = currentTime; // Update last debounce time
+  }
 #ifdef VERBOSE
   Serial.print("trigger ke-");
   Serial.println(limitTriggerKe);
@@ -105,9 +114,9 @@ void loop()
 #endif
       stepper.disableOutputs(); // stop motor secara instan (immediately)
       if (digitalRead(RADIO_PIN))
-        stepper.setCurrentPosition(8000); // Gerakkan motor 8000 langkah ke kiri
+        stepper.setCurrentPosition(PANJANG_GERBANG); // Gerakkan motor PANJANG_GERBANG langkah ke kiri
       else
-        stepper.setCurrentPosition(-8000); // Gerakkan motor 8000 langkah ke kiri
+        stepper.setCurrentPosition(-PANJANG_GERBANG); // Gerakkan motor PANJANG_GERBANG langkah ke kiri
     }
   }
   else // reset semua flag jika motor tidak bergerak
